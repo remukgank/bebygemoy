@@ -40,3 +40,8 @@ const snarkjs = await import('snarkjs');
 const vk = await snarkjs.zKey.exportVerificationKey(join(OUT, 'gatekeeper_final.zkey'));
 writeFileSync(join(OUT, 'gatekeeper_vk.json'), JSON.stringify(vk, null, 2));
 console.log(`gatekeeper_vk.json: written (nPublic=${vk.nPublic}, curve=${vk.curve})`);
+
+// Exit explicitly: importing snarkjs leaves handles open that keep the
+// Node process alive after the script finishes, which hangs `vercel build`
+// (the build command must exit for the build to complete).
+process.exit(0);
