@@ -50,7 +50,7 @@ Circuit artifacts (`.wasm`/`.zkey`) are **not committed** (binary) —
 they are fetched from the official public URL at build time and
 verified against the sha256 hashes in `scripts/fetch-circuits.mjs`.
 
-## Status (2026-11-16 ~15:00 WIB)
+## Status (2026-11-16 ~14:36 WIB)
 
 - **Code + local tests: DONE.** Harness 55/55, unit 7/7, Kurier mainnet smoke Finalized (job `be9bf6f0-e18e-11f1-838e-1e6a0d14f999`). Pushed to `remukgank/bebygemoy` (commit `8b5e2801`).
 - **BLOCKED — Vercel team access (needs Beby):** all Vercel team calls 403 (`scope "pandawa88s-projects-9fe21d0c"`, team `team_6VaS732qM9pxS5deW3gML8il`). Beby must grant the Muse Vercel connection access to that team, then retry `create_git_project`. The `authorize_team_access` tool does not exist in the connector.
