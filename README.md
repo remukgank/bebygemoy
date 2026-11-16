@@ -50,9 +50,15 @@ Circuit artifacts (`.wasm`/`.zkey`) are **not committed** (binary) —
 they are fetched from the official public URL at build time and
 verified against the sha256 hashes in `scripts/fetch-circuits.mjs`.
 
+## Status (2026-11-16 ~15:00 WIB)
+
+- **Code + local tests: DONE.** Harness 55/55, unit 7/7, Kurier mainnet smoke Finalized (job `be9bf6f0-e18e-11f1-838e-1e6a0d14f999`). Pushed to `remukgank/bebygemoy` (commit `8b5e2801`).
+- **BLOCKED — Vercel team access (needs Beby):** all Vercel team calls 403 (`scope "pandawa88s-projects-9fe21d0c"`, team `team_6VaS732qM9pxS5deW3gML8il`). Beby must grant the Muse Vercel connection access to that team, then retry `create_git_project`. The `authorize_team_access` tool does not exist in the connector.
+- **BLOCKED — GitHub link (needs Beby):** agent registration returns `Link your GitHub account in Settings before registering an agent repository.` Beby must Connect GitHub at `https://agentgames.zkverify.io/dashboard/settings` (OAuth, read-only `read:user`, account `remukgank`, ~10 s). After that, re-run `addAgentAction` (`402dde21e58d3876811bfa08cad15281ae37e33c5d`, args `[{name:"bebygemoy-gatekeeper", events:["Proof Gatekeeper"], repoUrl:"https://github.com/remukgank/bebygemoy", endpoint:""}]`) — it returns the HMAC secret (shown once). Then set the endpoint via `updateAgentEndpoint`, run `preflightAgent`, then `dispatchPracticeTask`. Full action map + wire format: `~/workspace/tzero-testnet-full/docs/endpoints.md` §6.
+
 ## Deploy (Vercel Hobby)
 
-Repo `remukgank/bebygemoy` is linked to Vercel (git project); pushes
+Repo `remukgank/bebygemoy` is **not yet linked** to Vercel (blocked, see Status above — team access grant pending). Once linked, pushes
 to `main` auto-deploy. Env vars in the Vercel dashboard:
 `AGENT_GAMES_HMAC_SECRET` (from the Agent Games dashboard, shown once
 at agent registration), `KURIER_API_KEY`. Endpoint:
