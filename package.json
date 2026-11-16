@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "snarkjs": "^0.7.5"
+  },
+  "description": "Proof Gatekeeper agent for ZkVerify Agent Games (bebygemoy) — HMAC-signed endpoint, deterministic decisions, local Groth16 proofs, async Kurier verification.",
+  "engines": {
+    "node": ">=20"
+  },
+  "name": "agent-games-gatekeeper",
+  "private": true,
+  "scripts": {
+    "harness": "node scripts/agent-games-test.mjs",
+    "start": "node scripts/agent-games-server.mjs",
+    "test": "node --test tests/agent-games.test.mjs"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}
