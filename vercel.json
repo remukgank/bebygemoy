@@ -1,1 +1,1 @@
-{"buildCommand":"node scripts/fetch-circuits.mjs","functions":{"api/agent.js":{"includeFiles":"assets/agent-games/**","maxDuration":60}}}
+{"buildCommand":"node scripts/fetch-circuits.mjs && mkdir -p public","functions":{"api/agent.js":{"includeFiles":"assets/agent-games/**","maxDuration":60}},"outputDirectory":"public"}
