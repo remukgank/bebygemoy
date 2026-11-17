@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "circomlibjs": "^0.1.7",
+    "ethers": "^6.17.0",
     "snarkjs": "^0.7.5"
   },
   "description": "Proof Gatekeeper agent for ZkVerify Agent Games (bebygemoy) — HMAC-signed endpoint, deterministic decisions, local Groth16 proofs, async Kurier verification.",
@@ -10,8 +12,10 @@
   "private": true,
   "scripts": {
     "harness": "node scripts/agent-games-test.mjs",
+    "harness:steal": "node scripts/steal-test.mjs",
     "start": "node scripts/agent-games-server.mjs",
-    "test": "node --test tests/agent-games.test.mjs"
+    "steal-commitment": "node scripts/steal-commitment.mjs",
+    "test": "node --test tests/agent-games.test.mjs tests/agent-games-steal.test.mjs"
   },
   "type": "module",
   "version": "0.1.0"

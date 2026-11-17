@@ -16,6 +16,10 @@ const BASE = 'https://agentgames.zkverify.io/circuits/';
 const FILES = {
   'gatekeeper.wasm': 'be00aefe3c8ba910951a242f50e55937bf82a0375ad4b69c2ef10629ab92764f',
   'gatekeeper_final.zkey': 'adfe95a439a7063a82a4967ef026d2dd6857a4d02c63b3caf63dac02e01af80d',
+  // Steal the VFY (vfy-policy circuit) — hashes pinned to the verified
+  // platform downloads (see Realgood-2 src/artifacts.ts, 2026-11-16).
+  'vfy-policy.wasm': 'bc0998250d2baf75b89deef5306867ffa7085a08d4f7d2caf0dd63a060b134d2',
+  'vfy-policy_final.zkey': 'f9666a1655279ef27f7fee6d535ac8aa9e39286ac40ff6279fea87c21ab6ce41',
 };
 
 mkdirSync(OUT, { recursive: true });
@@ -35,11 +39,14 @@ for (const [name, sha] of Object.entries(FILES)) {
   console.log(`${name}: downloaded ${buf.length} bytes, sha256 OK`);
 }
 
-// (Re)generate the verification key from the zkey (fast, deterministic).
+// (Re)generate the verification keys from the zkeys (fast, deterministic).
 const snarkjs = await import('snarkjs');
 const vk = await snarkjs.zKey.exportVerificationKey(join(OUT, 'gatekeeper_final.zkey'));
 writeFileSync(join(OUT, 'gatekeeper_vk.json'), JSON.stringify(vk, null, 2));
 console.log(`gatekeeper_vk.json: written (nPublic=${vk.nPublic}, curve=${vk.curve})`);
+const stealVk = await snarkjs.zKey.exportVerificationKey(join(OUT, 'vfy-policy_final.zkey'));
+writeFileSync(join(OUT, 'vfy-policy_vk.json'), JSON.stringify(stealVk, null, 2));
+console.log(`vfy-policy_vk.json: written (nPublic=${stealVk.nPublic}, curve=${stealVk.curve})`);
 
 // Exit explicitly: importing snarkjs leaves handles open that keep the
 // Node process alive after the script finishes, which hangs `vercel build`

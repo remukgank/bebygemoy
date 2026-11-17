@@ -35,15 +35,60 @@ the 60-second task deadline.
 - Idempotency: responses are cached by `task_id`; a platform retry
   returns the byte-identical earlier response.
 
+## Steal the VFY (added 2026-11-17)
+
+The same `POST /agent` endpoint also answers Steal turns, dispatched
+by `eventId == "steal-the-vfy"` (Gatekeeper routing is unchanged).
+Each turn the agent returns the one move its committed strategy
+selects, plus a Groth16 policy proof (`vfy-policy` circuit, 9 public
+signals) that the platform verifies itself — no Kurier submission on
+this path.
+
+- **Strategy (aggressive, registered):** `STEAL_VFY_PARAMS=10,12,3,0,0,0,0,0`
+  — extract 10, FORTIFY when own balance < 12, HOLD when the opponent
+  is at 3 or less (`params[3]=0`, `params[4..7]=0`). The policy is
+  deterministic: `selfBalance < params[1]` → FORTIFY; `opponentBalance
+  <= params[2]` → HOLD (**inclusive** — at exactly `params[2]` only
+  HOLD is provable); `params[3] == 1` → HOLD; otherwise EXTRACT
+  `params[0]`. EXTRACT amount must equal `params[0]`; HOLD/FORTIFY
+  amount is 0 and the response **omits** the `amount` field entirely
+  for them (the platform rejects the turn if it is present, even as 0).
+- **Commitment:** `Poseidon(strategyParams[0..7], salt)` — 32-byte hex,
+  registered in the dashboard ("Commitment hash"). The salt is private
+  randomness (`STEAL_VFY_SALT`, 16 random bytes hex, generated once,
+  never shared, never committed). Compute it with
+  `npm run steal-commitment`. Changing params or salt produces a
+  different commitment and requires re-registration between matches.
+- **Binding (public signal 0):** `Poseidon(matchId, turnNumber,
+  circuitVersion)` — one valid proof slot per (match, turn, version).
+  Public signals (9): `[binding, commitment, matchId, turnNumber,
+  selfBalance, opponentBalance, action, amount, circuitVersion]`
+  (actions: HOLD=0, FORTIFY=1, EXTRACT=2; circuitVersion=1).
+- **Response:** `{ matchId, turn, action: {type, amount?}, policyProof:
+  { circuitVersion: "v1", proof, public_signals, publicInputsHash },
+  agentTimestamp, idempotencyKey }`. `idempotencyKey` is a deterministic
+  UUID v5 of `steal:<matchId>:turn:<turn>`; a platform retry of an
+  answered turn gets the byte-identical response from the cache.
+- **Disabled without a salt:** if `STEAL_VFY_SALT` is unset, Steal
+  turns answer 503 (`steal_not_configured`) and Gatekeeper keeps
+  working. A failed local proof verification is a 500 (fail closed),
+  never a response with a bad proof.
+- **Circuit artifacts:** `vfy-policy.wasm` / `vfy-policy_final.zkey`
+  are fetched at build time by `scripts/fetch-circuits.mjs`
+  (sha256-verified, same pattern as gatekeeper) and **not committed**;
+  `assets/agent-games/vfy-policy_vk.json` (nPublic=9) is committed.
+
 ## Run locally
 
 ```sh
 npm install
-node scripts/fetch-circuits.mjs  # downloads gatekeeper.wasm/.zkey (sha256-verified)
-cp .env.example .env   # fill AGENT_GAMES_HMAC_SECRET (+ KURIER_API_KEY)
+node scripts/fetch-circuits.mjs  # downloads gatekeeper + vfy-policy .wasm/.zkey (sha256-verified)
+cp .env.example .env   # fill AGENT_GAMES_HMAC_SECRET (+ KURIER_API_KEY, STEAL_VFY_SALT)
 npm start              # http://127.0.0.1:3000 (POST /agent, GET /health)
-npm test               # unit tests (decide/HMAC/field)
-npm run harness        # replay: preflight + 1 valid + 6 traps + security
+npm test               # unit tests (decide/HMAC/field + Steal policy/circuit/UUID)
+npm run harness        # replay: preflight + 1 valid + 6 traps + security (Gatekeeper)
+npm run harness:steal  # replay: 8 Steal turns + replay/commitment/auth/disabled (205 checks)
+npm run steal-commitment  # print the Steal strategy commitment for dashboard registration
 ```
 
 Circuit artifacts (`.wasm`/`.zkey`) are **not committed** (binary) —

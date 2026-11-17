@@ -10,9 +10,40 @@ import { verifyHmac, signResponse } from './hmac.mjs';
 import { decide, SeenSet } from './gatekeeper.mjs';
 import { proveGatekeeper } from './prove.mjs';
 import { submitProof, pollToFinalized } from './kurier.mjs';
+import { handleStealTurn } from './steal-handler.mjs';
+import { parseStrategyParams, DEFAULT_STRATEGY_PARAMS } from './steal-policy.mjs';
+import { computeCommitment, parseSalt, STEAL_EVENT_ID } from './steal-circuit.mjs';
 
 export function createState({ seenStateFile = null } = {}) {
-  return { seen: new SeenSet(seenStateFile), responses: new Map() };
+  return { seen: new SeenSet(seenStateFile), responses: new Map(), stealResponses: new Map(), stealPromise: null };
+}
+
+// Lazy Steal-the-VFY context (params + salt + commitment), built once per
+// process from env and cached as a promise. Returns null when the track is
+// not configured (STEAL_VFY_SALT unset) or misconfigured (invalid params /
+// salt) — Steal turns then answer 503 and Gatekeeper keeps working.
+async function getStealContext(env, state, log) {
+  if (!state.stealPromise) {
+    state.stealPromise = (async () => {
+      const saltRaw = (env.STEAL_VFY_SALT ?? '').trim();
+      if (!saltRaw) {
+        log('steal disabled: STEAL_VFY_SALT is not set');
+        return null;
+      }
+      try {
+        const paramsRaw = (env.STEAL_VFY_PARAMS ?? '').trim() || DEFAULT_STRATEGY_PARAMS.join(',');
+        const params = parseStrategyParams(paramsRaw);
+        const salt = parseSalt(saltRaw);
+        const commitment = await computeCommitment(params, salt);
+        log('steal enabled', `params=${params.join(',')}`, `commitment=${commitment.hex}`);
+        return { params, salt, commitmentHex: commitment.hex, commitmentDecimal: commitment.decimal };
+      } catch (e) {
+        log('steal misconfigured:', String(e?.message ?? e).slice(0, 200));
+        return null;
+      }
+    })();
+  }
+  return state.stealPromise;
 }
 
 function jsonResponse(status, obj, secret) {
@@ -56,6 +87,14 @@ export async function handleAgentRequest({ method, path, headers, rawBody, env, 
   if (envelope?.type === 'agent-games.preflight.v1') {
     log('preflight', envelope.agent_id ?? '');
     return jsonResponse(200, { ok: true, protocolVersion: 'v1' }, secret);
+  }
+
+  // Steal the VFY: dispatched by eventId (the envelope carries no `type`).
+  // Gatekeeper envelopes never carry this eventId, so the Gatekeeper path
+  // below is unchanged. HMAC was already verified above.
+  if (envelope?.eventId === STEAL_EVENT_ID) {
+    const steal = await getStealContext(env, state, log);
+    return handleStealTurn(envelope, { secret, steal, stealResponses: state.stealResponses, log });
   }
 
   if (envelope?.type !== 'agent-games.proof-gatekeeper.v1') {
